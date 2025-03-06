@@ -1,12 +1,12 @@
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
 # from model import Database
 from model import DocumentDatabase
 from view import *
 from controller import ChatController
 import subprocess
-
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 
 
