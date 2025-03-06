@@ -1,7 +1,7 @@
  #!/bin/bash
 
 # Configuration - Change this to match your Google Drive folder ID
-drive_folder_id="1ZrIzMONRkb10DFW24_66SNVqeo7iqFxs"
+drive_folder_id=$CHROMADB_REMOTE_FOLDER_ID
 zip_file="chroma_db.zip"
 local_folder="chroma_db"
 
