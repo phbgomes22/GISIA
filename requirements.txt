@@ -16,3 +16,4 @@ streamlit-chat
 langchain-chroma
 pdfplumber
 pysqlite3-binary
+gdown

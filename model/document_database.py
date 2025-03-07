@@ -30,7 +30,10 @@ class DocumentDatabase(Database):
     def _initialize(self, load=True, file_path="data/", text_splitter=None, loader=None):
         self.file_path = file_path
         # Load existing database if it exists
-        if os.path.exists(config.PERSIST_DIRECTORY) and load:
+        if load:
+            self.vectorstore = Chroma(persist_directory=config.PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings())
+            return
+        elif os.path.exists(config.PERSIST_DIRECTORY) and load:
             print("Loading existing vector database...")
             self.vectorstore = Chroma(persist_directory=config.PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings())
             existing_metadatas = self.vectorstore.get()["metadatas"]

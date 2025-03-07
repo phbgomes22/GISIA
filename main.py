@@ -4,6 +4,7 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 from model import DocumentDatabase
 from view import *
+from aux import document_loader
 from controller import ChatController
 import subprocess
 
@@ -13,12 +14,15 @@ if __name__ == "__main__":
     # Load ChromaDB from remote source
     try:
         # Give execute permission to the script
-        subprocess.run(["chmod", "+x", "loader_vector_db.sh"], check=True)
+        subprocess.run(["chmod", "+x", "aux/loader_vector_db.sh"], check=True)
         # run script
-        result = subprocess.run(["./loader_vector_db.sh", "--load"], check=True, text=True, capture_output=True)
+        result = subprocess.run(["aux/loader_vector_db.sh", "--load"], check=True, text=True, capture_output=True)
         print("****** Script output:", result.stdout)
     except subprocess.CalledProcessError as e:
         print("****** Error:", e.stderr)
+
+    # Download Original Documents
+    document_loader.download_dataset()
 
     # Initialize MVC components
     model = DocumentDatabase(file_path="data/Dominios sobre impacto socioambiental positivo")
