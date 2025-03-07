@@ -194,5 +194,3 @@ class DocumentDatabase(Database):
             # llm.invoke(query).content - not asking llm
             responses = {"query": query, "llm": "", "rag": rag_chain.invoke(query)}
         return responses
-
-print("Document Database Loaded")

@@ -9,9 +9,9 @@ data/
 */.idea
 *.pyc
 *.bin
-*/chroma_db/*
+chroma_db/*
 *.sqlite3
-chroma.sqlite3
+*chroma.sqlite3
 .cpython-310.
 *.pickle
 # Byte-compiled / optimized / DLL files
@@ -19,6 +19,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .conda
+__MACOSX*
 
 # C extensions
 *.so
