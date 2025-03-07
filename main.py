@@ -2,7 +2,6 @@ __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
-# from model import Database
 from model import DocumentDatabase
 from view import *
 from controller import ChatController
@@ -13,6 +12,9 @@ import subprocess
 if __name__ == "__main__":
     # Load ChromaDB from remote source
     try:
+        # Give execute permission to the script
+        subprocess.run(["chmod", "+x", "loader_vector_db.sh"], check=True)
+        # run script
         result = subprocess.run(["./loader_vector_db.sh", "--load"], check=True, text=True, capture_output=True)
         print("****** Script output:", result.stdout)
     except subprocess.CalledProcessError as e:

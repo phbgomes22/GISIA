@@ -1,4 +1,4 @@
- #!/bin/bash
+#!/usr/bin/env python3
 
 # Configuration - Change this to match your Google Drive folder ID
 drive_folder_id=$CHROMADB_REMOTE_FOLDER_ID
