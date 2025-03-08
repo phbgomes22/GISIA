@@ -9,7 +9,6 @@ data/
 */.idea
 *.pyc
 *.bin
-chroma_db/*
 *.sqlite3
 *chroma.sqlite3
 .cpython-310.
@@ -20,6 +19,7 @@ __pycache__/
 *$py.class
 .conda
 __MACOSX*
+*secrets.toml
 
 # C extensions
 *.so
@@ -76,8 +76,6 @@ cover/
 # Django stuff:
 *.log
 local_settings.py
-db.sqlite3
-db.sqlite3-journal
 
 # Flask stuff:
 instance/

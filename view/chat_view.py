@@ -14,15 +14,9 @@ from langchain.prompts import PromptTemplate
 # Load environment variables from .env
 load_dotenv()
 
-# Get FILE_LOCATIONS from .env
-BASE_FILE_PATH = os.getenv("FILES_LOCATION", "")
-
-# from model.database import ask_rag
-
 
 class ChatView:
-    def __init__(self, file_path: str):
-
+    def __init__(self, file_path: str = None):
         st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
         # Display Logo
         st.columns(1)[0].image("view/images/iarisLogo.jpeg", width=80)
@@ -62,10 +56,10 @@ class ChatView:
         self.rag_message = st.chat_message("🤖")
         self.sources_tab = st.empty()
 
-        text_container = st.container()
         # Text Input Box
-        with text_container:
+        with st.form(key='input_form', border=False):
             self.user_input = st.text_area("", "", key="input", placeholder="Pergunte alguma coisa")
+            self.submit_button = st.form_submit_button(label='Enviar')
 
         # Initialize Session State
         self._init_session_state()
@@ -144,7 +138,8 @@ class ChatView:
                     cleaned_path = re.match(r"^(.+?\.pdf)\b", source_path)
                     if cleaned_path:
                         file_name = os.path.basename(source_path)
-                        file_url = urllib.parse.quote(BASE_FILE_PATH + cleaned_path.group(1), safe=":/")
+                        # [TODO]: fix this, find a way to present file (maybe storing documents somewhere else? [not s3])
+                        file_url = urllib.parse.quote(cleaned_path.group(1), safe=":/")
                         with col:
                             st.link_button(label=f"{file_name}", url=file_url)
 
@@ -153,14 +148,12 @@ class ChatView:
         topics_json_path = config.TOPICS_FILE
 
         if not os.path.exists(topics_json_path):
-            print("⚠️ topics.json not found. Trying to fetch from current data dir.")
-            topics_dirs = [f.path for f in os.scandir(config.DATA_DIR) if f.is_dir()]
-            topics = [re.search(r'[^/]+$', topic).group() for topic in topics_dirs]
-            return topics
+            print("⚠️ topics.json not found. Check remote S3 ChromaDB.")
+            return []
 
         with open(topics_json_path, "r", encoding="utf-8") as f:
             topics_clean = json.load(f)
-
+        print("✅ Topics loaded for filtering.")
         return topics_clean
     
 

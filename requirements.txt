@@ -15,5 +15,7 @@ streamlit-float
 streamlit-chat
 langchain-chroma
 pdfplumber
-pysqlite3-binary
 gdown
+s3fs
+boto3
+pysqlite3-binary

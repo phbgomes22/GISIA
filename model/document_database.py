@@ -13,12 +13,13 @@ import os
 from model.database import Database
 import re
 import json
-# from database import Database
+
 
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
 openai_key = os.getenv("OPENAI_API_KEY")
+
 
 class DocumentDatabase(Database):
 
@@ -27,13 +28,21 @@ class DocumentDatabase(Database):
     def format_docs(self, docs: List[Document]):
         return "\n\n".join(doc.page_content for doc in docs)
 
-    def _initialize(self, load=True, file_path="data/", text_splitter=None, loader=None):
+    def _initialize(self, chroma_db, file_path="data/", text_splitter=None, loader=None):
         self.file_path = file_path
+        
+        # in production, chroma_db should always exist and be fetched from remote source
+        if chroma_db:
+            self.vectorstore = chroma_db
+            existing_metadatas = self.vectorstore.get()["metadatas"]
+            existing_docs = {meta["source"] for meta in existing_metadatas if "source" in meta}  # Use source as ID
+            print("✅ Document Database instantiated with existing document count: ", len(existing_docs))
+        else:
+            self._create_chroma_db(file_path=file_path, text_splitter=text_splitter, loader=loader)
+
+    def _create_chroma_db(self, file_path="data/", text_splitter=None, loader=None):
         # Load existing database if it exists
-        if load:
-            self.vectorstore = Chroma(persist_directory=config.PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings())
-            return
-        elif os.path.exists(config.PERSIST_DIRECTORY) and load:
+        if os.path.exists(config.PERSIST_DIRECTORY):
             print("Loading existing vector database...")
             self.vectorstore = Chroma(persist_directory=config.PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings())
             existing_metadatas = self.vectorstore.get()["metadatas"]
@@ -44,7 +53,6 @@ class DocumentDatabase(Database):
             existing_docs = set()
 
         print(f"Existing document count: {len(existing_docs)}")
-
 
         # Get all PDF paths
         all_documents = [
@@ -119,25 +127,26 @@ class DocumentDatabase(Database):
 
         
     def _setup_rag(self, chain_params, prompt: PromptTemplate, **kwargs):
-        
-        if "filter_dict" in kwargs.keys():
-            print("Filter dict in setup: ", kwargs["filter_dict"])
-            filter_dict = kwargs["filter_dict"]
-            for i in range(len(filter_dict["filters"])):
-                full_filter = self.file_path + "/" + filter_dict["filters"][i]
-                filter_dict["filters"][i] = full_filter
-            # print("Full Filter dict in setup: ", filter_dict)
-            retriever = self.vectorstore.as_retriever(
-                
-                search_kwargs={
-                    "k": chain_params["retriever_k"],
-                    "filter": {"subject": {"$in":filter_dict["filters"]}},
-                }
-            )
-        else:
-            retriever = self.vectorstore.as_retriever(
-                search_kwargs={"k": chain_params["retriever_k"]}
-            )
+        # [TODO] Talk to Felipe and understand why filtering isn't working!
+
+        # if "filter_dict" in kwargs.keys():
+        #     print("✅ Filter dict in setup: ", kwargs["filter_dict"])
+        #     filter_dict = kwargs["filter_dict"]
+        #     for i in range(len(filter_dict["filters"])):
+        #         full_filter = self.file_path + "/" + filter_dict["filters"][i]
+        #         filter_dict["filters"][i] = full_filter
+
+        #     print("Full Filter dict in setup: ", filter_dict["filters"])
+        #     retriever = self.vectorstore.as_retriever(
+        #         search_kwargs={
+        #             "k": chain_params["retriever_k"],
+        #             "filter": {"subject": {"$in":filter_dict["filters"]}},
+        #         }
+        #     )
+        # else:
+        retriever = self.vectorstore.as_retriever(
+            search_kwargs={"k": chain_params["retriever_k"]}
+        )
 
         llm = ChatOpenAI(model_name="gpt-4o-mini", api_key=openai_key)
 
@@ -168,8 +177,11 @@ class DocumentDatabase(Database):
             filter_dict = kwargs["filter_dict"]
             # print("Filter dict: ", filter_dict)
             rag_chain = self._setup_rag(chain_params, prompt, filter_dict=filter_dict)
+            print("✅ Creating RAG Chain from Filter Dict!")
         else:
             rag_chain = self._setup_rag(chain_params, prompt)
+            print("❌ Creating RAG Chain without Filter Dict!")
+    
         llm = ChatOpenAI(model_name="gpt-4o-mini", api_key=openai_key)
         if debug:
             fake_docs = [Document(page_content="CONTEXT", metadata={"source":"SOURCE"+str(i)}) for i in range(1, chain_params["retriever_k"]+1)]
@@ -178,7 +190,10 @@ class DocumentDatabase(Database):
         if output_format == "stream":
             # Get sources
             sources = []
-            context = rag_chain.invoke(query)["context"]
+            rag_query = rag_chain.invoke(query)
+            context = rag_query["context"]
+            print("-- RAG CHAIN context: ", context)
+            print("-- RAG CHAIN query: ", rag_query)
             if len(context) == 0:
                 print("No context found!!!!!!")
             answer_chain = rag_chain.pick("answer")

@@ -14,7 +14,7 @@ class ChatController:
             user_edited_prompt = self.view.get_edited_prompt()
             retriever_k = self.view.retriever_k
             filter_dict = {"filters": self.view.get_search_filters()}
-            if user_input != last_input:
+            if user_input != last_input and user_input != "" and user_input != '':
                 # self.db.add_user_input(user_input)
                 query_par = {"retriever_k": retriever_k}
                 output_format = "stream"
