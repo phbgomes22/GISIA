@@ -17,5 +17,5 @@ langchain-chroma
 pdfplumber
 gdown
 s3fs
-boto3
+st-files-connection
 pysqlite3-binary
