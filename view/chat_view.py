@@ -17,7 +17,6 @@ load_dotenv()
 
 class ChatView:
     def __init__(self, file_path: str = None):
-        st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
         # Display Logo
         st.columns(1)[0].image("view/images/iarisLogo.jpeg", width=80)
 

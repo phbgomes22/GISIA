@@ -41,12 +41,16 @@ def get_chroma_db():
 
 def main():
 
+    st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
+    
     # Load the database once and use it persistently
     chroma_db = get_chroma_db()
 
+    view = ChatView(file_path="")
+
+
     # Initialize MVC components
     model = DocumentDatabase(chroma_db=chroma_db, file_path="data/Dominios sobre impacto socioambiental positivo")
-    view = ChatView(file_path="")
     controller = ChatController(model, view)
 
     # Run the chat interface
