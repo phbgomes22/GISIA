@@ -4,7 +4,7 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 from model import DocumentDatabase
 from view import *
-from aux import document_loader, vector_db_loader
+from auxiliary import document_loader, vector_db_loader
 from controller import ChatController
 import subprocess
 import streamlit as st
