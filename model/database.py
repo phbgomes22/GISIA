@@ -37,10 +37,10 @@ class Database(ABC):
         """Method for initialization logic, must be implemented by the subclass."""
         pass
 
-    @abstractmethod
-    def _setup_rag(self):
-        raise NotImplementedError
+    # @abstractmethod
+    # def _setup_rag(self):
+    #     raise NotImplementedError
 
-    @abstractmethod
-    def ask_rag(self, query, *args) -> dict:
-        raise NotImplementedError
+    # @abstractmethod
+    # def ask_rag(self, query, *args) -> dict:
+    #     raise NotImplementedError
