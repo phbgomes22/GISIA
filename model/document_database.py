@@ -10,12 +10,9 @@ from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-from langgraph.graph import MessagesState, StateGraph
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
-
 import config
 from model.database import Database
+from model.graph_chatbot import app
 
 load_dotenv(override=True)
 openai_key = os.getenv("OPENAI_API_KEY")
@@ -44,7 +41,7 @@ class DocumentDatabase(Database):
     #     self._initialize(chroma_db)
     #     self._build_graph()
 
-    def _initialize(self, chroma_db: Chroma, file_path):
+    def _initialize(self, chroma_db: Chroma, file_path, prompt_template: PromptTemplate = None, retriever_k: int = 1, filter_list: List[str] = None):
         """
         — If an existing Chroma is passed in, reuse it.
         — Otherwise, either load from disk or build from scratch.
@@ -56,9 +53,12 @@ class DocumentDatabase(Database):
             print("✅ Document Database instantiated with existing document count:", len(existing_docs))
         else:
             self._create_chroma_db(file_path=file_path)
-        self._build_graph()
         self.file_path = file_path
-
+        self.prompt_template = prompt_template
+        self.retriever_k = retriever_k
+        self.filter_list = filter_list
+        self._build_graph()
+ 
 
     def _create_chroma_db(self, file_path="data/", text_splitter=None, loader=None):
         # Load existing database if it exists
@@ -145,7 +145,7 @@ class DocumentDatabase(Database):
         """
         return "\n\n".join(doc.page_content for doc in docs)
 
-    def _build_graph(self, prompt_tpl, retriever_k, filter_list):
+    def _build_graph(self):
         """
         Construct a LangGraph graph that:
           • Takes a user query + user‐edited prompt template fields,
@@ -154,111 +154,10 @@ class DocumentDatabase(Database):
           • Sends that into ChatOpenAI (gpt‐4o‐mini),
           • Streams back a “rag_stream” plus “sources.”
         """
-
-         # (A) Define a custom State with all fields we need
-        class RAGState(MessagesState):
-            query: str = ""
-            prompt_tpl: PromptTemplate = None
-            retriever_k: int = 1
-            filter_list: List[str] = []
-
-            raw_chunks: List[Document] = []
-            formatted_context: str = ""
-            rag_stream: any = None
-            sources: List[str] = []
-            answer = ""
-            history = []
-
-        self.graph = StateGraph(RAGState)
-        
-        # (1) Node: retrieve top‐K chunks from Chroma
-        def retrieve_chunks(state: RAGState) -> List[Document]:
-            retriever = self.vectorstore.as_retriever(
-                search_kwargs={"k": retriever_k}
-            )
-            # If you want filtering by “subject,” uncomment below:
-            # retriever = self.vectorstore.as_retriever(
-            #     search_kwargs={
-            #         "k": state.retriever_k,
-            #         "filter": {"subject": {"$in": state.filter_list}}
-            #     }
-            # )
-            docs: List[Document] = retriever(state.query)
-            state.raw_chunks = docs
-            return docs
-
-        # (2) Node: format those chunks into one big string
-        
-        def format_context(state: RAGState) -> str:
-            ctxt = self.format_docs(state.raw_chunks)
-            state.formatted_context = ctxt
-            return ctxt
-
-        # (3) Node: call the LLM in streaming mode
-        
-        def call_llm_stream(state: RAGState):
-
-            if state.history:
-                hist_lines = []
-                for turn in state.history:
-                    role = turn["role"]
-                    cont = turn["content"]
-                    # e.g. "User: How does X work?"
-                    hist_lines.append(f"{role.capitalize()}: {cont}")
-                history_str = "\n".join(hist_lines) + "\n\n"
-            else:
-                history_str = ""
-
-            # (b) Combine history + retrieved-docs
-            combined_context = history_str + state.formatted_context
-
-            state.formatted_context = combined_context
-
-            rag_chain = (
-                RunnablePassthrough.assign(context=(lambda x: state.formatted_context))
-                | prompt_tpl
-                | ChatOpenAI(model_name="gpt-4o-mini", api_key=openai_key)
-                | StrOutputParser()
-            )
-
-            full_answer: str = rag_chain.invoke({"question": state.query})
-            state.answer = full_answer
-
-
-            stream_gen = rag_chain.stream({"question": state.query})
-            state.rag_stream = stream_gen
-            return stream_gen
-
-        # (4) Node: collect “sources” from metadata
-        
-        def collect_sources(state: RAGState) -> List[str]:
-            sources: List[str] = []
-            for chunk in state.raw_chunks:
-                src = chunk.metadata.get("source", "")
-                if "page" in chunk.metadata:
-                    src += f"\n\nPage {chunk.metadata['page']}"
-                sources.append(src)
-            state.sources = sources
-            return sources
-
-        # (5) Node: run them all in order
-        def run_pipeline(state: RAGState):
-            _ = retrieve_chunks(state)
-            _ = format_context(state)
-            _ = call_llm_stream(state)
-            _ = collect_sources(state)
-            return state
-        
-        
-        self.graph.add_node('pipeline', run_pipeline)
-
-        self.graph.set_entry_point('pipeline')
+        self.graph = app
 
     def run_rag(self,
-                query: str,
-                prompt_tpl: PromptTemplate,
-                retriever_k: int = 1,
-                filter_list: List[str] = None) -> Dict:
+                query: str) -> Dict:
         """
         Public method that any controller/UI can call:
           • It takes the raw user query + a PromptTemplate instance
@@ -268,26 +167,49 @@ class DocumentDatabase(Database):
                   "sources": [list of source‐strings]
                 }
         """
-        if filter_list is None:
-            filter_list = []
+        # if filter_list is None:
+        #     filter_list = []
 
         # Initialize a fresh state
         initial_state = {
             "query": query,
-            "prompt_tpl": prompt_tpl,
-            "retriever_k": retriever_k,
-            "filter_list": filter_list,
+            "prompt_template": self.prompt_template,
+            "retriever_k": self.retriever_k,
+            "filter_list": self.filter_list,
+            "raw_chunks": [],
+            "formatted_context": "",
+            "rag_stream": None,
+            "sources": [],
+            "answer": "",
+            "combined_context": "",
+            # "history": [],
+            "vectorstore": self.vectorstore,
         }
 
+        print("Running RAG with initial state:", initial_state)
+
+        # query: str = ""
+        # prompt_tpl: PromptTemplate 
+        # retriever_k: int
+        # filter_list: List[str]
+
+        # raw_chunks: List[Document] = []
+        # formatted_context: str = ""
+        # rag_stream: any = None
+        # sources: List[str] = []
+        # answer = ""
+        # combined_context: str = ""
+
         # invoke the graph (this will run the `generate_rag` function)
-        app = self.graph.compile()
+        app = self.graph
         # new_state = self.graph.invoke(initial_state)
         new_state = app.invoke(initial_state)
-
+        print(new_state)
+        # print("RAG response state:", new_state)
         
         return {
-            "query": new_state.query,
-            "rag_stream": new_state.rag_stream,
-            "rag_text": new_state.answer, 
-            "sources": new_state.sources
+            "query": new_state["query"],
+            "rag_stream": new_state["rag_stream"],
+            "rag_text": new_state["answer"], 
+            "sources": new_state["sources"]
         }
