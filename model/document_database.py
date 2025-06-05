@@ -30,17 +30,6 @@ class DocumentDatabase(Database):
          - Stream back "rag_stream" plus "sources."
     """
 
-    # def __init__(self, chroma_db: Chroma = None, file_path: str = "data/"):
-    #     """
-    #     If `chroma_db` is provided, we reuse it; otherwise, build a new one from `file_path`.
-    #     Then we build the LangGraph pipeline.
-    #     """
-    #     super().__init__()
-    #     print("chromadb", chroma_db)
-    #     self.file_path = file_path
-    #     self._initialize(chroma_db)
-    #     self._build_graph()
-
     def _initialize(self, chroma_db: Chroma, file_path, prompt_template: PromptTemplate = None, retriever_k: int = 1, filter_list: List[str] = None):
         """
         — If an existing Chroma is passed in, reuse it.
@@ -157,7 +146,7 @@ class DocumentDatabase(Database):
         self.graph = app
 
     def run_rag(self,
-                query: str) -> Dict:
+                query: str, messages: List[str]) -> Dict:
         """
         Public method that any controller/UI can call:
           • It takes the raw user query + a PromptTemplate instance
@@ -184,9 +173,9 @@ class DocumentDatabase(Database):
             "combined_context": "",
             # "history": [],
             "vectorstore": self.vectorstore,
+            "messages": messages
         }
 
-        print("Running RAG with initial state:", initial_state)
 
         # query: str = ""
         # prompt_tpl: PromptTemplate 
@@ -204,9 +193,8 @@ class DocumentDatabase(Database):
         app = self.graph
         # new_state = self.graph.invoke(initial_state)
         new_state = app.invoke(initial_state)
-        print(new_state)
-        # print("RAG response state:", new_state)
         
+
         return {
             "query": new_state["query"],
             "rag_stream": new_state["rag_stream"],

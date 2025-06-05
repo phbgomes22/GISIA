@@ -63,7 +63,8 @@ Be provocative and ask one follow-up inquiry to question the client, making sure
             self.submit_button = st.form_submit_button(label="Enviar")
 
         # Initialize session state for caching messages
-        self._init_session_state()
+        if "user_input" not in st.session_state:
+            self._init_session_state()
 
     def _init_session_state(self):
         st.session_state["user_input"] = []
@@ -109,6 +110,7 @@ Be provocative and ask one follow-up inquiry to question the client, making sure
         if self.user_input:
             st.session_state["user_input"].append(self.user_input)
             if responses:
+                # print("Responses received:", responses)
                 self._handle_responses(responses)
 
         # Always re‐render the entire chat history + streams
@@ -134,7 +136,8 @@ Be provocative and ask one follow-up inquiry to question the client, making sure
 
         # If user decides to not stream (in future), you could also handle a non‐streaming “rag_text”
         if "rag_text" in responses:
-            st.session_state["rag_generated"].append(responses["rag_text"])
+            # Append the generated text to the session state
+            st.session_state["rag_generated"].append(responses["rag_text"])            
             st.session_state["sources"] = responses["sources"]
 
     def _display_sources(self):
@@ -170,20 +173,19 @@ Be provocative and ask one follow-up inquiry to question the client, making sure
         return topics_clean
     
 
-    def _generate_context(self, prompt, context_data='generated'):
-        context = []
+    def generate_context(self):
         # If any history exists
-        if st.session_state['generated']:
+        context = []
+        if st.session_state['rag_generated']:
             # Add the last three exchanges
             EXCHANGE_LIMIT = 3
-            size = len(st.session_state['generated'])
+            size = len(st.session_state['rag_generated'])
+            # print("Current size of history:", size)
             for i in range(max(size-EXCHANGE_LIMIT, 0), size):
                 context.append(
                     {'role': 'user', 'content': st.session_state['user_input'][i]}
                 )
                 context.append(
-                    {'role': 'assistant', 'content': st.session_state[context_data][i]}
+                    {'role': 'assistant', 'content': st.session_state["rag_generated"][i]}
                 )
-        # Add the latest user prompt
-        context.append({'role': 'user', 'content': str(prompt)})
         return context

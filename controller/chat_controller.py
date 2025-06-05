@@ -13,8 +13,9 @@ class ChatController:
         self.view = view
         self.last_input = ""
         self.history = []
-        self.prompt = self.view.get_edited_prompt()
+        self.messages = []
         self.retriever_k = self.view.retriever_k
+        self.prompt = self.view.get_edited_prompt()
         self.filters = self.view.get_search_filters()
         self.user_edited_prompt = self.view.get_edited_prompt()
         self._update_query()
@@ -38,12 +39,13 @@ class ChatController:
             self.user_edited_prompt = self.view.get_edited_prompt()
             self.retriever_k = self.view.retriever_k
             self.filter_dict = {"filters": self.view.get_search_filters()}
-
+            chat_history = self.view.generate_context()
+            if chat_history is not []:
+                # print("Chat has history")
+                self.messages = chat_history
             # Only proceed if the user typed something new and nonempty
             if user_input and user_input != self.last_input:
                 self.last_input = user_input
-
-                self.history.append({"role": "user", "content": user_input})
 
                 # Unpack our filter list:
                 flist = self.filter_dict["filters"]
@@ -51,9 +53,8 @@ class ChatController:
                 # Ask our LangGraph‐powered RAG engine to stream an answer:
                 rag_response = self.db.run_rag(
                     query=user_input,
+                    messages=self.messages
                 )
-
-                # rag_response = { "query": ..., "rag_stream": <generator>, "sources": [...] }
                 # Hand that off to the view for display:
                 self.view.display(responses=rag_response)
 

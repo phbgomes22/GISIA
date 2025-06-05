@@ -1,4 +1,6 @@
 from langgraph.graph import MessagesState, StateGraph
+from langchain_core.messages import HumanMessage, AIMessage
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.prompts import PromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
@@ -77,14 +79,15 @@ def format_context(state: RAGState) -> str:
 # (3) Node: call the LLM in streaming mode
 
 def call_llm_stream(state: RAGState):
-
-    # if state["history"]:
     if state["messages"]:
         hist_lines = []
         for turn in state["messages"]:
-            print("turn", turn)
-            role = turn["role"]
-            cont = turn["content"]
+            if (type(turn) is HumanMessage):
+                role = "user"
+            elif (type(turn) is AIMessage):
+                role = "assistant"
+            # print("turn", turn)
+            cont = turn.content
             # e.g. "User: How does X work?"
             hist_lines.append(f"{role.capitalize()}: {cont}")
         history_str = "\n".join(hist_lines) + "\n\n"
@@ -134,4 +137,6 @@ graph = StateGraph(RAGState)
 graph.add_node("run_pipeline", run_pipeline)
 graph.add_edge("run_pipeline", "__end__")
 graph.set_entry_point("run_pipeline")
+# memory = MemorySaver()
+# config = {"configurable": {"thread_id": "abc123"}}
 app = graph.compile()
