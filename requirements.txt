@@ -19,3 +19,4 @@ gdown
 s3fs
 st-files-connection
 pysqlite3-binary
+langgraph

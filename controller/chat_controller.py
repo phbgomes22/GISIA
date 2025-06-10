@@ -47,9 +47,6 @@ class ChatController:
             if user_input and user_input != self.last_input:
                 self.last_input = user_input
 
-                # Unpack our filter list:
-                flist = self.filter_dict["filters"]
-
                 # Ask our LangGraph‐powered RAG engine to stream an answer:
                 rag_response = self.db.run_rag(
                     query=user_input,
