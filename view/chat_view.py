@@ -28,14 +28,14 @@ class ChatView:
 
         # Sidebar: slider + multi‐select of topics
         with st.sidebar:
-            st.title("⚙️ Chatbot Settings")
+            st.title("⚙️ Ajustes")
 
-            with st.expander("🔍 Search Parameters", expanded=False):
-                self.values = st.slider("Buscar em quantos documentos?", 1, 5)
+            with st.expander("🔍 Parâmetros de busca", expanded=False):
+                self.values = st.slider("Buscar em quantos documentos?", 2, 10)
 
             # Let user tweak the PromptTemplate
             self.user_prompt = st.text_area(
-                "Edit the chatbot's prompt template",
+                "Altere o prompt padrão da IARIS",
                 '''Você é a IARIS, uma IA assistente especializada em negócios de impacto socioambiental positivo que existe para apoiar gestores de instituições, ONGs e negócios com fins lucrativos a atuarem de forma eficiente a favor de impacto socioambiental positivo.
 
                     Seu objetivo é fornecer insights práticos, estratégias e ferramentas para melhorar a gestão de suas organizações, sempre com foco em gerar e ampliar impactos positivos para a sociedade e o meio ambiente.
@@ -166,17 +166,16 @@ class ChatView:
         with self.sources_tab.container():
             if st.session_state["sources"]:
                 st.markdown("📚 **Fontes**")
-
                 cols = st.columns(len(st.session_state['sources']))  # Create one column per source
                 
                 for col, source_path in zip(cols, st.session_state['sources']):
-                    cleaned_path = re.match(r"^(.+?\.pdf)\b", source_path)
-                    if cleaned_path:
-                        file_name = os.path.basename(source_path)
-                        # [TODO]: fix this, find a way to present file (maybe storing documents somewhere else? [not s3])
-                        file_url = urllib.parse.quote(cleaned_path.group(1), safe=":/")
-                        with col:
-                            st.link_button(label=f"{file_name}", url=file_url)
+                    # Extract filename without extension
+                    base_name = os.path.splitext(os.path.basename(source_path))[0]
+                    # Construct the S3 URL
+                    s3_url = f"https://iarisdocuments.s3.sa-east-1.amazonaws.com/IARIS_DOCS/{urllib.parse.quote(base_name)}.pdf"
+
+                    with col:
+                        st.link_button(label=base_name + ".pdf", url=s3_url)
 
 
     def _load_topics_json(self):

@@ -35,7 +35,6 @@ def get_chroma_db():
     with open(LOCAL_DB_PATH, "wb") as f:
         f.write(file_data)
 
-
     print("✅ ChromaDB Loaded from Cache!")
     return Chroma(persist_directory=LOCAL_DB_FOLDER, embedding_function=OpenAIEmbeddings())
 
@@ -48,9 +47,8 @@ def main():
 
     view = ChatView(file_path="")
 
-
     # Initialize MVC components
-    model = DocumentDatabase(chroma_db=chroma_db, file_path="data/Dominios sobre impacto socioambiental positivo")
+    model = DocumentDatabase(chroma_db=chroma_db, file_path="data/IARIS_DATA")
     controller = ChatController(model, view)
 
     # Run the chat interface

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from langchain_core.prompts import PromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain_community.document_loaders import PDFPlumberLoader
+from langchain_community.document_loaders import TextLoader
 from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
@@ -35,6 +35,11 @@ class DocumentDatabase(Database):
         — If an existing Chroma is passed in, reuse it.
         — Otherwise, either load from disk or build from scratch.
         """
+        self.file_path = file_path
+        self.prompt_template = prompt_template
+        self.retriever_k = retriever_k
+        self.filter_list = filter_list
+
         if chroma_db:
             self.vectorstore = chroma_db
             existing_metadatas = self.vectorstore.get()["metadatas"]
@@ -42,12 +47,7 @@ class DocumentDatabase(Database):
             print("✅ Document Database instantiated with existing document count:", len(existing_docs))
         else:
             self._create_chroma_db(file_path=file_path)
-        self.file_path = file_path
-        self.prompt_template = prompt_template
-        self.retriever_k = retriever_k
-        self.filter_list = filter_list
         self._build_graph()
- 
 
     def _create_chroma_db(self, file_path="data/", text_splitter=None, loader=None):
         # Load existing database if it exists
@@ -56,6 +56,8 @@ class DocumentDatabase(Database):
             self.vectorstore = Chroma(persist_directory=config.PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings())
             existing_metadatas = self.vectorstore.get()["metadatas"]
             existing_docs = {meta["source"] for meta in existing_metadatas if "source" in meta}  # Use source as ID
+            print(existing_docs)
+            return
         else:
             print("No existing database found. Creating a new one...")
             self.vectorstore = Chroma(embedding_function=OpenAIEmbeddings(), persist_directory=config.PERSIST_DIRECTORY)
@@ -64,16 +66,12 @@ class DocumentDatabase(Database):
         print(f"Existing document count: {len(existing_docs)}")
 
         # Get all PDF paths
-        all_documents = [
+        new_documents = [
             os.path.join(root, file)
             for root, _, files in os.walk(file_path)
-            for file in files if file.endswith(".pdf")
+            for file in files if file.endswith(".txt")
         ]
 
-        # Filter out ones already indexed
-        new_documents = [doc for doc in all_documents if doc not in existing_docs]
-
-        print(f"Found {len(all_documents)} PDFs in total.")
         print(f"+++ New PDFs to process: {len(new_documents)}")
 
         if not new_documents:
@@ -83,9 +81,11 @@ class DocumentDatabase(Database):
         new_splits = []
         subjects = [f.path for f in os.scandir(file_path) if f.is_dir()]
 
+        # Process .txt documents instead of PDFs
         for i, document_path in enumerate(new_documents):
             print(f"+++ Processing document {i+1}/{len(new_documents)}: {document_path}")
-            loader = PDFPlumberLoader(file_path=document_path)
+            
+            loader = TextLoader(file_path=document_path)
             docs = loader.load()
             for doc in docs:
                 for subject in subjects:
@@ -94,17 +94,18 @@ class DocumentDatabase(Database):
                 doc.metadata["source"] = document_path  # Track source
 
             if text_splitter is None:
-                text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 
-            # new_splits.extend(text_splitter.split_documents(docs))
+            new_splits.extend(text_splitter.split_documents(docs))
 
-        # Persist the updated topics.json for filtering in UI
-        self._save_topics_json()
 
         # Add new chunks into Chroma and persist
         print(f"Adding {len(new_splits)} new documents to the vector database...")
-        self.vectorstore.add_documents(new_splits)
-        self.vectorstore.persist()
+        self.vectorstore = Chroma.from_documents(documents=new_splits, embedding=OpenAIEmbeddings(),
+                                 persist_directory=config.PERSIST_DIRECTORY)
+
+        # Persist the updated topics.json for filtering in UI
+        self._save_topics_json()
         print("Vector database update complete.")
 
     def _save_topics_json(self, output_folder: str = "./chroma_db"):
