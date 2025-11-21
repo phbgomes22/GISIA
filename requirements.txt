@@ -1,4 +1,4 @@
-langchain
+langchain==0.3.18
 langchain_core
 langchain-community
 langchain_openai
@@ -21,3 +21,4 @@ st-files-connection
 pysqlite3-binary
 langgraph
 langchainhub
+langchain-text-splitters
