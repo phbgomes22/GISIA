@@ -34,8 +34,6 @@ class RAGState(MessagesState):
     rag_stream: any = None
     sources: List[str] = []
     answer:str = ""
-    # combined_context: str = ""
-    # history = []
     vectorstore: Chroma = None
 
     def __init__(self, query: str = "", prompt_template: PromptTemplate = None, retriever_k: int = 4, filter_list: List[str] = None, vectorstore: Chroma = None):
@@ -49,8 +47,6 @@ class RAGState(MessagesState):
         self.rag_stream = None
         self.sources = []
         self.answer = ""
-        # self.combined_context = ""
-        # self.history = []
         self.vectorstore = vectorstore
 
 # (1) Node: retrieve top‐K chunks from Chroma
@@ -58,13 +54,7 @@ def retrieve_chunks(state: RAGState) -> List[Document]:
     retriever = state["vectorstore"].as_retriever(
         search_kwargs={"k": state["retriever_k"]}
     )
-    # If you want filtering by “subject,” uncomment below:
-    # retriever = self.vectorstore.as_retriever(
-    #     search_kwargs={
-    #         "k": state.retriever_k,
-    #         "filter": {"subject": {"$in": state.filter_list}}
-    #     }
-    # )
+
     docs: List[Document] = retriever.invoke(state["query"])
     state["raw_chunks"] = docs
     return state

@@ -178,19 +178,6 @@ class DocumentDatabase(Database):
         }
 
 
-        # query: str = ""
-        # prompt_tpl: PromptTemplate 
-        # retriever_k: int
-        # filter_list: List[str]
-
-        # raw_chunks: List[Document] = []
-        # formatted_context: str = ""
-        # rag_stream: any = None
-        # sources: List[str] = []
-        # answer = ""
-        # combined_context: str = ""
-
-        # invoke the graph (this will run the `generate_rag` function)
         app = self.graph
         # new_state = self.graph.invoke(initial_state)
         new_state = app.invoke(initial_state)

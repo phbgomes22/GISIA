@@ -1,4 +1,3 @@
-from langchain import hub
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader, SeleniumURLLoader, PDFPlumberLoader
 from langchain_community.vectorstores import Chroma
